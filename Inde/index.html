@@ -1,0 +1,175 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Family Emergency Binder</title>
+<style>
+:root{--ink:#1d2433;--ac:#b5472f;--ln:#d9d4cc}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,sans-serif;color:var(--ink);background:#faf7f2}
+.bar{position:sticky;top:0;z-index:9;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--ln)}
+button,.b{font:inherit;padding:6px 12px;border:1px solid var(--ink);background:#fff;border-radius:6px;cursor:pointer}
+.p{background:var(--ink);color:#fff}
+main{max-width:860px;margin:auto;padding:16px}
+h1{font:700 32px Georgia,serif;text-align:center;margin:20px 0 4px}
+.sub{text-align:center;color:#666;margin:0 0 18px;font-style:italic}
+.sec{background:#fff;border:1px solid var(--ln);border-radius:8px;padding:16px;margin-bottom:16px}
+h2{margin:0 0 8px;font:700 20px Georgia,serif}h2 b{color:var(--ac);margin-right:8px}
+fieldset{border:0;border-top:1px solid var(--ln);margin:10px 0 0;padding:6px 0 0}
+legend{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ac);font-weight:700;padding-right:8px}
+legend i{background:var(--ac);color:#fff;border-radius:3px;padding:0 4px;font-size:10px;margin-left:6px;font-style:normal}
+.e{position:relative;padding:8px 30px 8px 0;border-bottom:1px dotted var(--ln)}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 12px}
+.g label{display:flex;flex-direction:column;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666}
+.g .w{grid-column:1/-1}
+input[type=text],textarea{font:15px system-ui;padding:5px 8px;border:1px solid var(--ln);border-radius:5px;margin-top:2px;width:100%;color:var(--ink);resize:none;overflow:hidden}
+.x{position:absolute;right:0;top:6px;padding:0 8px;border-color:var(--ln);color:#a33}
+.add{margin-top:6px;border-style:dashed;font-size:13px}
+.ck{position:relative;display:flex;gap:8px;align-items:flex-start;padding:4px 30px 4px 0;border-bottom:1px dotted var(--ln)}
+.ck>span,.ck>textarea{flex:1;margin:0}
+.ck .x{top:3px}
+.ck input[type=checkbox]{margin:5px 0 0}
+.ck input[type=radio]{width:13px;margin:5px 10px 0}
+.wh{display:flex;font-size:11px;font-weight:700;color:var(--ac)}.wh span{width:33px;text-align:center}
+.note{font-size:13px;color:#555}
+@media print{.bar,.x,.add{display:none}body{background:#fff;font-size:12px}main{max-width:none;padding:0}
+.sec{border:0;padding:0;break-after:page}.sec:last-child{break-after:auto}
+input[type=text],textarea{border:0;border-bottom:1px solid #999;border-radius:0}
+.e,.ck{break-inside:avoid}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+</style>
+<div class="bar">
+ <button class="p" id="sv">🔒 Save encrypted</button><button id="svp">Save plain JSON</button>
+ <label class="b">📂 Load JSON<input type="file" id="ld" accept=".json" hidden></label>
+ <button id="pdf">📄 Save PDF</button><button id="pr">🖨 Print</button><button id="cl">Clear</button>
+ <span><b>Residence:</b> <span id="reg"></span></span><span id="msg" class="note"></span>
+</div>
+<main><h1>Family Emergency Binder</h1><p class="sub">Everything your family needs to know. In one place.</p><div id="app"></div></main>
+<script>
+const RG={DE:'Germany',IN:'India'},$=s=>document.querySelector(s),
+rx=new RegExp('^('+Object.keys(RG).join('|')+'):'),
+P=s=>({r:(s.match(rx)||[,''])[1],l:s.replace(rx,'').replace(/~$/,''),a:s.endsWith('~')}),
+G=(n,f,o={})=>({...P(n),f:f.split(';').map(P),rep:1,...o}),
+O=()=>G('Other (custom)','Label;Details~'),
+esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),
+d=(k,i='')=>`data-k="${esc(k)}" data-i="${i}"`,
+fit=t=>{t.style.height='auto';t.style.height=t.scrollHeight+'px'};
+const PW='Login (password-manager entry)';
+// "DE:" / "IN:" prefix = shown only if that residence is ticked. Trailing "~" = multi-line field.
+const S=[
+{t:'Personal Information',g:[
+ G('Person (you, spouse, children)','Relation;Full name;Date of birth;Passport no.;DE:Tax ID (Steuer-ID);DE:Social insurance no. (SV-Nummer);DE:Residence permit / Blue Card no.;IN:Aadhaar no.;IN:PAN;IN:OCI card no.',{seed:['You','Spouse','Child 1']}),
+ G('Addresses','DE:Address in Germany~;IN:Address in India~',{rep:0}),
+ G('Emergency contact','Where / role;Name;Phone;Relationship',{seed:['DE:Contact in Germany','IN:Contact in India']}),
+ G('Guardian for children','Guardian name;Phone;Where this is documented (will / notary)',{rep:0}),O()]},
+{t:'Financial Accounts',g:[
+ G('Bank account','Bank;Type (current / savings / NRE / NRO);DE:IBAN;DE:BIC;IN:Account no.;IN:IFSC;Joint holder / nominee;'+PW),
+ G('Credit card','Bank;Card type;Last 4 digits only;'+PW),
+ G('Loan / mortgage','Lender;Type;Contract / account no.;'+PW),
+ G('Locker / safe deposit box','Bank & branch;Locker / box no.;Where the key is kept;Authorised person'),O()]},
+{t:'Investments',g:[
+ G('Brokerage / retirement account','Institution;Type;Account no.;Beneficiary / nominee;'+PW),
+ G('DE:Pension & savings contracts','Type;Provider;Contract no.;Beneficiary;Contact',{seed:['DE:Statutory pension (Deutsche Rentenversicherung)','DE:Employer pension (bAV)','DE:Private pension (Riester / Rürup)']}),
+ G('IN:Indian investments','Type;Institution;Account / folio no.;Nominee;'+PW,{seed:['IN:Demat account','IN:Mutual funds (folio)','IN:Fixed deposits','IN:EPF (UAN) / PPF / NPS']}),
+ G('Investment account for child','Child;Institution;Type;Account no.;'+PW),O()]},
+{t:'Insurance',g:[
+ G('Insurance policy','Type;Provider;Policy no.;Beneficiaries;Agent / contact',{seed:['DE:Krankenversicherung (health)','DE:Haftpflicht (liability)','DE:Hausrat (contents)','DE:Risikolebensversicherung (term life)','DE:Berufsunfähigkeit (disability)','DE:KFZ (car)','IN:Term / life insurance (India)','IN:Health insurance (India)']}),O()]},
+{t:'Utilities & Monthly Bills',g:[
+ G('Utility / bill','Service;Company;Customer / account no.;Paid from (autopay account)',{seed:['Electricity','Gas','Water','Internet','Mobile','DE:Rent (Miete) / landlord','DE:Rundfunkbeitrag (broadcast fee)','IN:Society / property bills (India)']}),O()]},
+{t:'Digital Accounts',note:'Keep passwords in a password manager, not in this file. Record where to find them.',g:[
+ G('Account','Account;Username / ID;Recovery method;Password stored where',{seed:['Primary email','Phone unlock / Apple ID / Google account','Password manager (master + recovery)','Cloud storage','Social media','DE:ELSTER (tax portal)','IN:DigiLocker / income-tax portal']}),O()]},
+{t:'Legal Documents',g:[
+ G('Document','Document;Original kept where;Copy / holder;Notes~',{seed:['Will (Testament)','DE:Vorsorgevollmacht (power of attorney)','DE:Patientenverfügung (living will)','DE:Betreuungsverfügung','Birth & marriage certificates','DE:Rental contract / residence permit copies','IN:Registered will / POA (India)','IN:Property deeds / titles (India)']}),
+ G('Professional contact','Role;Name;Phone;Country',{seed:['Lawyer / notary','DE:Tax advisor (Steuerberater)','IN:Chartered accountant (CA)']}),O()]},
+{t:'Employer, Real Estate & Assets',g:[
+ G('Employer','Company;Job title;Address;Manager & contact;HR & contact;Group benefits (life, pension)'),
+ G('Property','Address;Ownership / title;Mortgage info;Documents kept where'),
+ G('Vehicle','Make / plate;VIN;Registration & insurance'),
+ G('Valuables','Item;Where kept;Notes~'),O()]},
+{t:'Checklist for Spouse / Family',l:[
+ ['First two weeks','c',['Take your time. Almost nothing has to be decided in the first two weeks.','DE:Death is registered via the Standesamt; order 10–15 certified copies (Sterbeurkunden)','IN:Report the death to the Indian Embassy/Consulate; ask about passport / OCI cancellation','Ask for apostilled or certified-translated copies of the death certificate for cross-border use','Notify employer, insurers and banks','Locate the will and contact the lawyer / notary','Access joint accounts and settle immediate bills','Do not close the primary bank account or cancel cards yet: autopays still run','DE:Notify Krankenkasse, Deutsche Rentenversicherung and landlord','Notify utilities and service accounts','DE:Notify SCHUFA to prevent identity fraud','IN:Notify credit bureaus (CIBIL etc.)','Keep a written log of who was notified and when']],
+ ['The next few months','c',['Claim life insurance benefits','DE:Apply for an Erbschein at the Nachlassgericht if there is no notarial will','DE:Apply for survivor pension (Hinterbliebenenrente)','DE:Check dependants\' residence-permit status with the Ausländerbehörde','DE:Final tax return (Steuererklärung); consider a Steuerberater','IN:Obtain legal heir / succession certificate','IN:Claim nominee accounts: a nominee is a custodian, not automatically the legal heir','IN:File the final Indian ITR','Contact investment providers to transfer or close accounts','Retrieve contents of the safe deposit box / locker','Update beneficiaries on your own accounts and insurance','Check unclaimed employer benefits: final pay, PTO, group life, pension','Get legal and tax advice in both countries before major decisions']]]},
+{t:'Household Chores 101',note:'W = Wife · H = Husband · T = Together. Own it: notice > plan > do > finish. Click a selected option again to untick.',l:[
+ ['Daily','w',['Dishes / Dishwasher','Kitchen cleanup','Cooking / meals',"Kids' morning / school routine","Kids' bath + bedtime",'Toys / general tidy-up','Trash / recycling','Quick floor sweep']],
+ ['Weekly','w',['Groceries','Laundry: wash, fold, put away','Vacuum + mop','Bathrooms','Bedsheets + towels','Meal prep','Fridge clean-out',"Kids' activities / school tasks",'Yard / outdoor work','DE:Pfand returns / waste separation']],
+ ['Monthly / as needed','w',['Kitchen / appliance deep clean','Fridge + pantry restock','Windows, mirrors + fans','AC filter / home maintenance','Declutter / donate','Bills + family finances',"Kids' appointments / forms",'Family calendar / planning','Car maintenance','DE:Official letters (Behördenpost)']]]},
+{t:'Personal Notes & Messages',g:[G('Message','To;Message~')]}];
+
+let D={r:['DE','IN'],g:{},l:{},s:[]},dirty=0;
+const act=r=>!r||D.r.includes(r),
+sd=(a,k,x,o)=>{const id=k+'|'+x.l;if(act(x.r)&&!D.s.includes(id)){D.s.push(id);a.push(o)}};
+function seed(){S.forEach(s=>{
+ (s.g||[]).forEach(g=>{const k=s.t+'/'+g.l;D.g[k]??=g.rep&&g.seed?[]:[{}];
+  (g.seed||[]).map(P).forEach(x=>sd(D.g[k],k,x,{[g.f[0].l]:x.l,_r:x.r}))});
+ (s.l||[]).forEach(([n,,it])=>{const k=s.t+'/'+n;D.l[k]??=[];
+  it.map(P).forEach(x=>sd(D.l[k],k,x,{t:x.l,s:1,r:x.r}))})})}
+
+const grp=(s,g)=>{if(!act(g.r))return'';const k=s.t+'/'+g.l;
+ return`<fieldset><legend>${esc(g.l)}${g.r?`<i>${g.r}</i>`:''}</legend>`+D.g[k].map((e,i)=>!act(e._r)?'':
+  `<div class="e">${g.rep?`<button class="x" data-a="del" ${d(k,i)}>×</button>`:''}<div class="g">`+
+  g.f.filter(f=>act(f.r)).map(f=>{const a=`${d(k,i)} data-f="${esc(f.l)}"`,v=esc(e[f.l]);
+   return`<label class="${f.a?'w':''}">${esc(f.l)}`+(f.a?`<textarea rows="2" ${a}>${v}</textarea>`:`<input type="text" ${a} value="${v}">`)+`</label>`}).join('')+`</div></div>`).join('')+
+  (g.rep?`<button class="add" data-a="add" ${d(k)}>+ Add ${esc(g.l.toLowerCase())}</button>`:'')+`</fieldset>`};
+
+const lst=(s,[n,m])=>{const k=s.t+'/'+n;
+ return`<fieldset><legend>${esc(n)}</legend>${m=='w'?'<div class="wh"><span>W</span><span>H</span><span>T</span></div>':''}`+
+  D.l[k].map((x,i)=>!act(x.r)?'':`<div class="ck">`+
+   (m=='w'?['W','H','T'].map(v=>`<input type="radio" name="${esc(k)}#${i}" value="${v}" ${d(k,i)} data-p="o" ${x.o==v?'checked':''}>`).join('')
+          :`<input type="checkbox" ${d(k,i)} data-p="c" ${x.c?'checked':''}>`)+
+   (x.s?`<span>${esc(x.t)}</span>`:`<textarea rows="1" ${d(k,i)} data-p="t">${esc(x.t)}</textarea>`)+
+   `<button class="x" data-a="del" data-l="1" ${d(k,i)}>×</button></div>`).join('')+
+  `<button class="add" data-a="add" data-l="1" ${d(k)}>+ Add item</button></fieldset>`};
+
+function render(){
+ $('#app').innerHTML=S.map((s,i)=>`<section class="sec"><h2><b>${String(i+1).padStart(2,'0')}</b>${esc(s.t)}</h2>${s.note?`<p class="note">${esc(s.note)}</p>`:''}`+
+  (s.g||[]).map(g=>grp(s,g)).join('')+(s.l||[]).map(l=>lst(s,l)).join('')+`</section>`).join('');
+ document.querySelectorAll('textarea').forEach(fit)}
+
+const sync=()=>{document.querySelectorAll('[data-r]').forEach(c=>c.checked=D.r.includes(c.dataset.r));seed();render()},
+msg=t=>{$('#msg').textContent=t;setTimeout(()=>$('#msg').textContent='',4000)};
+
+$('#reg').innerHTML=Object.entries(RG).map(([k,v])=>`<label><input type="checkbox" data-r="${k}"> ${v}</label>`).join(' ');
+$('#reg').onchange=()=>{D.r=[...document.querySelectorAll('[data-r]:checked')].map(c=>c.dataset.r);dirty=1;seed();render()};
+
+const app=$('#app');
+app.oninput=app.onchange=e=>{const t=e.target,{k,i,f,p}=t.dataset;if(!k)return;dirty=1;
+ if(f)D.g[k][i][f]=t.value;else D.l[k][i][p]=t.type=='checkbox'?t.checked:t.value;
+ if(t.tagName=='TEXTAREA')fit(t)};
+app.onclick=e=>{const t=e.target;
+ if(t.type=='radio'){const x=D.l[t.dataset.k][t.dataset.i];if(x.o==t.value)setTimeout(()=>{t.checked=false;x.o=''});return}
+ const{a,k,i,l}=t.dataset;if(!a)return;const arr=l?D.l[k]:D.g[k];dirty=1;
+ if(a=='add')arr.push(l?{t:''}:{});
+ else if(l||!Object.entries(arr[i]).some(([n,v])=>n!='_r'&&v)||confirm('Remove this entry?'))arr.splice(i,1);
+ render()};
+
+const b64=u=>{let s='';u.forEach(x=>s+=String.fromCharCode(x));return btoa(s)},
+ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),
+tm=()=>new Date().toISOString().slice(0,10),
+key=async(pw,salt,it)=>crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:it,hash:'SHA-256'},
+ await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']),
+ {name:'AES-GCM',length:256},false,['encrypt','decrypt']),
+enc=async(o,pw)=>{const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),it=600000,
+ ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(pw,salt,it),new TextEncoder().encode(JSON.stringify(o)));
+ return{app:'family-binder',v:2,enc:'AES-256-GCM',kdf:'PBKDF2-SHA256',it,salt:b64(salt),iv:b64(iv),ct:b64(new Uint8Array(ct))}},
+dec=async(j,pw)=>JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(j.iv)},await key(pw,ub(j.salt),j.it),ub(j.ct)))),
+dl=(o,n)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,1)],{type:'application/json'}));
+ a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);dirty=0};
+
+$('#sv').onclick=async()=>{
+ const p=prompt('Set a password (min 10 characters). If you lose it, the file cannot be recovered.');
+ if(!p)return; if(p.length<10)return msg('Password too short');
+ if(prompt('Repeat password')!==p)return msg('Passwords differ');
+ try{dl(await enc({d:D},p),'family-binder-enc-'+tm()+'.json');msg('Encrypted file saved')}
+ catch{msg('Encryption unavailable (needs https or a local file)')}};
+$('#svp').onclick=()=>confirm('This file is NOT encrypted. Continue?')&&
+ (dl({app:'family-binder',v:2,saved:new Date().toISOString(),d:D},'family-binder-plain-'+tm()+'.json'),msg('Saved unencrypted'));
+$('#ld').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+ try{let j=JSON.parse(await f.text());if(j.app!='family-binder')throw 0;
+  if(j.enc){const p=prompt('Password');if(!p)return;j=await dec(j,p)}
+  if(!j.d)throw 0;
+  D={r:['DE','IN'],g:{},l:{},s:[],...j.d};sync();dirty=0;msg('Loaded '+f.name)}
+ catch{msg('Wrong password or invalid file')}e.target.value=''};
+
+const pr=t=>{const o=document.title;document.title=t;print();document.title=o};
+$('#pr').onclick=()=>pr('Family Emergency Binder');
+$('#pdf').onclick=()=>{msg('Choose "Save as PDF" as the destination');pr('Family-Emergency-Binder-'+tm())};
+$('#cl').onclick=()=>confirm('Clear everything?')&&(D={r:D.r,g:{},l:{},s:[]},sync());
+onbeforeprint=()=>document.querySelectorAll('textarea').forEach(fit);
+onbeforeunload=e=>dirty?e.preventDefault():0;
+sync();
+</script></html>
